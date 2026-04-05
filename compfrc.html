@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRC Team Comparison</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --text: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #2a2a2a;
+            color: white;
+            width: 120px;
+        }
+
+        button {
+            padding: 10px 25px;
+            border-radius: 5px;
+            border: none;
+            background: #e91e63;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #c2185b;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .team-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            border-top: 8px solid #444;
+            transition: all 0.3s ease;
+        }
+
+        .team-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .team-avatar {
+            width: 60px;
+            height: 60px;
+            background: #333;
+            border-radius: 8px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .stat-label {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .stat-value {
+            font-weight: bold;
+        }
+
+        .epa-highlight {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>FRC Team Comparison</h1>
+        <p>2026 Season Analysis</p>
+    </header>
+
+    <div class="input-group">
+        <input type="number" id="team1Input" placeholder="Team 1 #" value="4180">
+        <input type="number" id="team2Input" placeholder="Team 2 #" value="254">
+        <button onclick="compareTeams()">Compare</button>
+    </div>
+
+    <div class="comparison-grid">
+        <div id="card1" class="team-card">
+            <div id="content1">Enter a team number and click Compare.</div>
+        </div>
+
+        <div id="card2" class="team-card">
+            <div id="content2">Enter a team number and click Compare.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function fetchTeamData(teamNum) {
+        try {
+            // Fetch Statbotics Data
+            const statResponse = await fetch(`https://api.statbotics.io/v3/team/${teamNum}`);
+            const stats = await statResponse.json();
+
+            // Fetch Colors
+            const colorResponse = await fetch(`https://api.frc-colors.com/v1/team?team=${teamNum}`);
+            const colorData = await colorResponse.json();
+            const colors = colorData.teams[teamNum]?.colors || { primaryHex: '#444444', secondaryHex: '#888888' };
+
+            return { stats, colors };
+        } catch (error) {
+            console.error("Error fetching team:", teamNum, error);
+            return null;
+        }
+    }
+
+    function renderTeam(teamData, elementId, cardId) {
+        const container = document.getElementById(elementId);
+        const card = document.getElementById(cardId);
+        
+        if (!teamData) {
+            container.innerHTML = "Error loading team data.";
+            return;
+        }
+
+        const { stats, colors } = teamData;
+        const avatarUrl = `https://www.thebluealliance.com/avatar/2026/frc${stats.team}.png`;
+
+        // Apply team colors to card
+        card.style.borderTopColor = colors.primaryHex;
+
+        container.innerHTML = `
+            <div class="team-header">
+                <img src="${avatarUrl}" class="team-avatar" onerror="this.style.display='none'">
+                <div>
+                    <h2 style="margin:0">${stats.team}</h2>
+                    <small style="color:${colors.secondaryHex}">${stats.name}</small>
+                </div>
+            </div>
+
+            <div class="stat-row"><span class="stat-label">Location</span><span class="stat-value">${stats.state}, ${stats.country}</span></div>
+            <div class="stat-row"><span class="stat-label">District</span><span class="stat-value">${stats.district?.toUpperCase() || 'N/A'}</span></div>
+            <div class="stat-row"><span class="stat-label">Rookie Year</span><span class="stat-value">${stats.rookie_year}</span></div>
+            <div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value">${(stats.record.winrate * 100).toFixed(1)}%</span></div>
+            <div class="stat-row"><span class="stat-label">W-L-T</span><span class="stat-value">${stats.record.wins}-${stats.record.losses}-${stats.record.ties}</span></div>
+            
+            <div class="epa-highlight">
+                <div class="stat-label">Current EPA</div>
+                <div style="color:${colors.primaryHex}">${Math.round(stats.norm_epa.current)}</div>
+            </div>
+
+            <div class="stat-row" style="margin-top:15px"><span class="stat-label">Recent EPA</span><span class="stat-value">${Math.round(stats.norm_epa.recent)}</span></div>
+            <div class="stat-row"><span class="stat-label">Max EPA</span><span class="stat-value">${Math.round(stats.norm_epa.max)}</span></div>
+        `;
+    }
+
+    async function compareTeams() {
+        const t1 = document.getElementById('team1Input').value;
+        const t2 = document.getElementById('team2Input').value;
+
+        if(!t1 || !t2) return alert("Please enter two team numbers");
+
+        document.getElementById('content1').innerHTML = "Loading...";
+        document.getElementById('content2').innerHTML = "Loading...";
+
+        const data1 = await fetchTeamData(t1);
+        const data2 = await fetchTeamData(t2);
+
+        renderTeam(data1, 'content1', 'card1');
+        renderTeam(data2, 'content2', 'card2');
+    }
+
+    // Initial Load
+    window.onload = compareTeams;
+</script>
+
+</body>
+</html>
